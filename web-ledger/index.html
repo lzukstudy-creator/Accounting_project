@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智能记账 Web</title>
+    <link rel="stylesheet" href="./styles.css?v=multi-scan-1" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">¥</div>
+          <div>
+            <strong id="brandName">智能记账</strong>
+            <span>AI Budget Ledger</span>
+          </div>
+        </div>
+        <nav class="nav" aria-label="主导航">
+          <button class="nav-item is-active" data-route="dashboard">首页</button>
+          <button class="nav-item" data-route="bills">账单</button>
+          <button class="nav-item" data-route="scanner">AI 扫描</button>
+          <button class="nav-item" data-route="stats">统计</button>
+          <button class="nav-item" data-route="budget">预算</button>
+          <button class="nav-item" data-route="advisor">AI 建议</button>
+          <button class="nav-item" data-route="settings">设置</button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">本地演示版 · 自动保存</p>
+            <h1 id="pageTitle">首页</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="icon-btn language-toggle" id="languageToggle" type="button" aria-label="切换语言" title="切换语言">中</button>
+            <button class="ghost-btn" id="seedDataBtn" type="button">恢复演示数据</button>
+            <button class="primary-btn" id="quickAddBtn" type="button">新增账单</button>
+          </div>
+        </header>
+
+        <section class="view is-active" id="dashboardView" data-view="dashboard">
+          <section class="panel display-currency-panel">
+            <div>
+              <h2>展示币种</h2>
+              <p>切换后首页、账单、统计、预算和 AI 建议会自动换算显示。</p>
+            </div>
+            <select id="displayCurrency"></select>
+          </section>
+          <div id="budgetAlert"></div>
+          <div class="metric-grid" id="dashboardMetrics"></div>
+          <div class="content-grid">
+            <section class="panel large">
+              <div class="panel-head">
+                <h2>本月支出趋势</h2>
+                <span id="monthScopeLabel"></span>
+              </div>
+              <canvas id="trendChart" width="900" height="280"></canvas>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h2>分类占比</h2>
+                <button class="text-btn" data-jump="stats" type="button">查看统计</button>
+              </div>
+              <div id="categoryBreakdown" class="stack"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>最近账单</h2>
+              <button class="text-btn" data-jump="bills" type="button">管理账单</button>
+            </div>
+            <div id="recentBills" class="bill-list compact"></div>
+          </section>
+        </section>
+
+        <section class="view" id="billsView" data-view="bills">
+          <section class="panel">
+            <div class="panel-head wrap">
+              <div>
+                <h2>账单管理</h2>
+                <p>支持新增、编辑、删除、查询和组合筛选。</p>
+              </div>
+              <div class="button-row">
+                <button class="danger-btn" id="batchDeleteBtn" type="button" disabled>删除选中</button>
+                <button class="primary-btn" id="addBillBtn" type="button">新增账单</button>
+              </div>
+            </div>
+            <div class="filters">
+              <input id="searchInput" type="search" placeholder="搜索商户、账户、备注" />
+              <select id="typeFilter"></select>
+              <select id="categoryFilter"></select>
+              <input id="dateFrom" type="date" />
+              <input id="dateTo" type="date" />
+              <button class="ghost-btn" id="clearFiltersBtn" type="button">清空筛选</button>
+            </div>
+            <div class="table-wrap bills-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="select-col">
+                      <input id="selectAllBills" type="checkbox" aria-label="全选账单" />
+                    </th>
+                    <th data-i18n="table.date">日期</th>
+                    <th data-i18n="table.type">类型</th>
+                    <th data-i18n="table.category">分类</th>
+                    <th data-i18n="table.merchant">商户</th>
+                    <th data-i18n="table.payment">支付方式</th>
+                    <th data-i18n="table.currency">币种</th>
+                    <th class="align-right" data-i18n="table.amount">金额</th>
+                    <th class="note-col" data-i18n="table.note">备注</th>
+                    <th data-i18n="table.source">来源</th>
+                    <th class="align-right" data-i18n="table.actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="billTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="scannerView" data-view="scanner">
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>AI 扫描识别</h2>
+                  <p>使用免费浏览器 OCR 识别图片，也可以粘贴账单文字自动提取字段。</p>
+                </div>
+              </div>
+              <label class="upload-box">
+                <input id="receiptFile" type="file" accept="image/*" />
+                <span>上传票据或支付截图</span>
+                <small>免费 OCR 在本机浏览器运行，首次加载会稍慢</small>
+              </label>
+              <div id="imagePreview" class="image-preview is-empty">暂无图片</div>
+              <textarea id="receiptText" rows="7" placeholder="也可以粘贴账单文字，例如：面包店 合计 ¥128 2026-05-17 12:30 支付宝"></textarea>
+              <label class="check-row">
+                <input id="autoAddToggle" type="checkbox" checked />
+                <span>识别后自动添加到账单</span>
+              </label>
+              <div class="button-row">
+                <button class="primary-btn" id="recognizeBtn" type="button">AI 识别账单</button>
+                <button class="ghost-btn" id="sampleScanBtn" type="button">使用示例票据</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>识别结果</h2>
+                <span id="scanConfidence" class="pill">等待识别</span>
+              </div>
+              <form id="scanDraftForm" class="form-grid"></form>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="statsView" data-view="stats">
+          <section class="panel">
+            <div class="panel-head wrap">
+              <div>
+                <h2>统计分析</h2>
+                <p>按日、月、年查看收入、支出、结余和分类结构。</p>
+              </div>
+              <select id="statsScope">
+                <option value="day">按日</option>
+                <option value="month" selected>按月</option>
+                <option value="year">按年</option>
+              </select>
+            </div>
+            <div class="metric-grid" id="statsMetrics"></div>
+            <div class="content-grid">
+              <div class="panel inset">
+                <h3>支出柱状图</h3>
+                <canvas id="statsChart" width="900" height="280"></canvas>
+              </div>
+              <div class="panel inset">
+                <h3>分类排名</h3>
+                <div id="statsCategoryList" class="stack"></div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="budgetView" data-view="budget">
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>预算与收入</h2>
+                  <p>设置月收入、月预算、储蓄目标和预警阈值。</p>
+                </div>
+              </div>
+              <form id="budgetForm" class="form-grid"></form>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h2>预算预警</h2>
+                <span id="budgetStatePill" class="pill"></span>
+              </div>
+              <div id="budgetProgressPanel"></div>
+              <h3>分类预算</h3>
+              <div id="categoryBudgetEditor" class="stack"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="advisorView" data-view="advisor">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>AI 财务建议</h2>
+                <p>基于收入、预算和历史消费，分析应控制的花销并建议工资分配。</p>
+              </div>
+            </div>
+            <div class="content-grid">
+              <div class="panel inset">
+                <h3>工资分配建议</h3>
+                <div id="salaryPlan" class="stack"></div>
+              </div>
+              <div class="panel inset">
+                <h3>消费控制建议</h3>
+                <div id="adviceList" class="stack"></div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="settingsView" data-view="settings">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>数据上传与设置</h2>
+                <p>导入 CSV、导出演示数据或清空本地缓存。</p>
+              </div>
+            </div>
+            <div class="content-grid">
+              <div class="panel inset">
+                <h3>上传账单数据</h3>
+                <input id="csvFile" type="file" accept=".csv,text/csv" />
+                <textarea id="csvPaste" rows="8" placeholder="type,amount,currency,category,date,merchant,account,note&#10;支出,38,GBP,餐饮,2026-05-17,午餐,支付宝,工作日午餐"></textarea>
+                <div class="button-row">
+                  <button class="primary-btn" id="importCsvBtn" type="button">导入 CSV</button>
+                  <button class="ghost-btn" id="downloadCsvBtn" type="button">导出 CSV</button>
+                </div>
+              </div>
+              <div class="panel inset">
+                <h3>本地数据</h3>
+                <p class="muted">所有账单和预算数据会保存在当前浏览器的 localStorage 中，适合演示和原型评审。</p>
+                <div class="button-row">
+                  <button class="ghost-btn" id="copyTemplateBtn" type="button">复制 CSV 模板</button>
+                  <button class="danger-btn" id="clearAllBtn" type="button">清空全部数据</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="billDialog">
+      <form method="dialog" class="dialog-card" id="billForm">
+        <div class="dialog-head">
+          <h2 id="billDialogTitle">新增账单</h2>
+          <button class="icon-btn" value="cancel" type="submit" aria-label="关闭">×</button>
+        </div>
+        <div id="quickPresets" class="quick-grid"></div>
+        <div class="form-grid" id="billFormFields"></div>
+        <div class="dialog-actions">
+          <button class="ghost-btn" value="cancel" type="submit">取消</button>
+          <button class="primary-btn" id="saveBillBtn" value="default" type="button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script>
+      document.documentElement.dataset.ocr = "loading";
+      window.__loadFreeOCR = import("./vendor/tesseract/tesseract.esm.min.js")
+        .then((module) => {
+          window.Tesseract = module.default || module;
+          const ready = Boolean(window.Tesseract?.recognize);
+          document.documentElement.dataset.ocr = ready ? "ready" : "unavailable";
+          return ready;
+        })
+        .catch(() => new Promise((resolve) => {
+          const sources = [
+            "./vendor/tesseract/tesseract.min.js",
+            "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
+            "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"
+          ];
+          const load = (index) => {
+            if (index >= sources.length) {
+              document.documentElement.dataset.ocr = "unavailable";
+              resolve(false);
+              return;
+            }
+            const script = document.createElement("script");
+            script.src = sources[index];
+            script.onload = () => {
+              const ready = Boolean(window.Tesseract?.recognize);
+              document.documentElement.dataset.ocr = ready ? "ready" : "unavailable";
+              resolve(ready);
+            };
+            script.onerror = () => load(index + 1);
+            document.head.appendChild(script);
+          };
+          load(0);
+        }));
+    </script>
+    <script src="./app.js?v=backend-sqlite-1"></script>
+  </body>
+</html>
