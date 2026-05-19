@@ -1116,6 +1116,7 @@ function isNonTransactionInfoLine(text) {
   if (/^\d{3,6}\s+[A-Za-z][A-Za-z\s'.-]{2,}\s*[@+]?\s*[0-9]{1,2}[:：][0-9]{2}\s*$/i.test(value)) return true;
   if (/^\d{3,6}\s+[A-Za-z][A-Za-z\s'.-]{2,}$/i.test(value)) return true;
   if (/^[A-Za-z][A-Za-z\s'.-]{2,}\s*[@+]?\s*[0-9]{1,2}[:：][0-9]{2}\s*$/i.test(value)) return true;
+  if (/^[A-Za-z][A-Za-z\s'.&-]{2,}\s+[0-9]{3,6}\s*$/i.test(value)) return true;
   return false;
 }
 
