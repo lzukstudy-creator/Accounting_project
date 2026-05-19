@@ -653,6 +653,8 @@ function applyStaticI18n() {
   });
   $("#selectAllBills").setAttribute("aria-label", language() === "en" ? "Select all bills" : "全选账单");
   $("#billDialog .icon-btn").setAttribute("aria-label", t("close"));
+  $("#imagePreviewTitle").textContent = language() === "en" ? "Image Preview" : "图片预览";
+  $("#closeImagePreviewBtn").setAttribute("aria-label", t("close"));
 }
 
 function metricHTML(title, value, note, accent) {
@@ -1834,12 +1836,30 @@ function bindEvents() {
     if (!file) {
       preview.className = "image-preview is-empty";
       preview.textContent = t("noImage");
+      $("#largeImagePreview").removeAttribute("src");
       return;
     }
     receiptPreviewUrl = URL.createObjectURL(file);
-    preview.className = "image-preview";
-    preview.innerHTML = `<img alt="${language() === "en" ? "Receipt image preview" : "账单图片预览"}" src="${receiptPreviewUrl}" />`;
+    const previewAlt = language() === "en" ? "Receipt image preview" : "账单图片预览";
+    preview.className = "image-preview has-image";
+    preview.innerHTML = `
+      <button class="preview-trigger" id="openImagePreviewBtn" type="button" aria-label="${language() === "en" ? "Preview uploaded image" : "预览上传图片"}">
+        <img alt="${previewAlt}" src="${receiptPreviewUrl}" />
+        <span class="preview-hint">${language() === "en" ? "Click to preview" : "点击预览"}</span>
+      </button>
+    `;
+    $("#largeImagePreview").src = receiptPreviewUrl;
+    $("#largeImagePreview").alt = previewAlt;
     showToast(language() === "en" ? "New image selected. Please scan again." : "已选择新图片，请重新识别");
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("#openImagePreviewBtn") && receiptPreviewUrl) {
+      $("#largeImagePreview").src = receiptPreviewUrl;
+      $("#imagePreviewDialog").showModal();
+    }
+    if (event.target.closest("#closeImagePreviewBtn")) {
+      $("#imagePreviewDialog").close();
+    }
   });
   $("#recognizeBtn").addEventListener("click", recognizeBill);
   $("#sampleScanBtn").addEventListener("click", () => {

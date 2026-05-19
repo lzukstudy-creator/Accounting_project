@@ -274,6 +274,16 @@
       </form>
     </dialog>
 
+    <dialog id="imagePreviewDialog" class="image-preview-dialog">
+      <div class="image-preview-modal">
+        <div class="dialog-head">
+          <h2 id="imagePreviewTitle">图片预览</h2>
+          <button class="icon-btn" id="closeImagePreviewBtn" type="button" aria-label="关闭">×</button>
+        </div>
+        <img id="largeImagePreview" alt="上传图片预览" />
+      </div>
+    </dialog>
+
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>
       document.documentElement.dataset.ocr = "loading";
@@ -309,6 +319,6 @@
           load(0);
         }));
     </script>
-    <script src="./app.js?v=backend-sqlite-1"></script>
+    <script src="./app.js?v=image-preview-1"></script>
   </body>
 </html>
