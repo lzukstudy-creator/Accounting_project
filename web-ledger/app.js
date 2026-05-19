@@ -1132,7 +1132,16 @@ function isNonTransactionInfoLine(text) {
   if (/^\d{3,6}\s+[A-Za-z][A-Za-z\s'.-]{2,}$/i.test(value)) return true;
   if (/^[A-Za-z][A-Za-z\s'.-]{2,}\s*[@+]?\s*[0-9]{1,2}[:：][0-9]{2}\s*$/i.test(value)) return true;
   if (/^[A-Za-z][A-Za-z\s'.&-]{2,}\s+[0-9]{3,6}\s*$/i.test(value)) return true;
+  if (/^[A-Za-z][A-Za-z\s'.&-]{2,}\s+[0-9]{3,6}\s+[A-Za-z][A-Za-z\s'.&-]{2,}$/i.test(value)) return true;
   return false;
+}
+
+function isLikelyExpenseChargeLine(text) {
+  const value = String(text || "");
+  if (!hasPositiveAmount(value)) return false;
+  if (/(?:reversal|refund|退款|退回|返现|cash\s*back|received|income|salary|deposit|credit|到账|入账|转入)/i.test(value)) return false;
+  if (inferCategory(value) !== "其他") return true;
+  return /(?:tesco|sainsbury|aldi|lidl|morrisons|waitrose|amazon|apple\.com\/bill|hyperoptic|myprinting|imart|oriental|stores?\s+[0-9]{3,6})/i.test(value);
 }
 
 function isDateLikeNumber(value) {
@@ -1142,6 +1151,7 @@ function isDateLikeNumber(value) {
 function inferBillType(text) {
   const normalized = String(text || "").replace(/(?:收款方|收款账户|收款账号|收款人|收款商户|收款单位)/g, " ");
   if (/(?:转账|转出|transfer)/i.test(normalized)) return "转账";
+  if (isLikelyExpenseChargeLine(normalized)) return "支出";
   if (hasPositiveAmount(normalized)) return "收入";
   if (/(?:工资|薪资|奖金|收入|到账|退款|退回|转入|入账|已收款|received|income|salary|refund|deposit|paid\s+in|credit)/i.test(normalized)) return "收入";
   return "支出";
