@@ -964,6 +964,7 @@ function extractBillLines(text) {
     .filter(Boolean);
   const candidates = lines.filter((line) => {
     if (isDateOnlyLine(line)) return false;
+    if (isNonTransactionInfoLine(line)) return false;
     if (!extractAmount(line)) return false;
     if (/(?:合计|总计|小计|应付|实付|支付金额|付款金额|total|subtotal|tax|balance)/i.test(line)) return false;
     if (/^(?:¥|£|\$|€)?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s*(?:元|GBP|CNY|USD|EUR)?$/i.test(line)) return false;
@@ -1060,6 +1061,7 @@ function inferExplicitCurrency(text) {
 }
 
 function extractAmount(text) {
+  if (isNonTransactionInfoLine(text)) return 0;
   const amountValue = "([+-]?\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?)";
   const currencyMark = "(?:¥|RMB|CNY|人民币|£|GBP|英镑|\\$|USD|美元|€|EUR|欧元|元)?";
   const dateStrippedText = stripDateAndTimeParts(text);
@@ -1090,10 +1092,31 @@ function isLikelyAmount(match, text) {
   const end = Math.min(text.length, match.index + match[0].length + 12);
   const around = text.slice(start, end);
   const value = parseAmountNumber(match[1]);
+  if (!hasMoneySignal(text) && value >= 1000 && /[A-Za-z\u4e00-\u9fa5]/.test(text)) return false;
   if (/[年月日:：]/.test(around)) return false;
   if (isDateLikeNumber(value) && /(?:date|time|日期|时间|[-/.年年月日])/i.test(around)) return false;
   if (/(?:订单|单号|流水|交易号|编号|电话|手机|No\.?|ID)/i.test(around)) return false;
   return true;
+}
+
+function hasMoneySignal(text) {
+  const value = String(text || "");
+  if (/(?:¥|RMB|CNY|人民币|£|GBP|英镑|\$|USD|美元|€|EUR|欧元|元)/i.test(value)) return true;
+  if (/(?:实付|实际支付|付款金额|支付金额|应付|合计|总计|消费|支出|收款|收入|到账|Amount|Total)/i.test(value)) return true;
+  if (/(^|[^\d])[+-]\s*(?:¥|RMB|CNY|人民币|£|GBP|英镑|\$|USD|美元|€|EUR|欧元|元)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?/i.test(value)) return true;
+  if (/(^|[^\d])[+-]\s*[0-9][0-9,]*\.[0-9]{1,2}/.test(value)) return true;
+  if (/(^|[^\d])[+-]\s*[0-9][0-9,]*(?![0-9,])(?=$|\s)/.test(value)) return true;
+  if (/(^|[^\d])[0-9][0-9,]*\.[0-9]{1,2}(?!\s*[:：])/.test(value)) return true;
+  return false;
+}
+
+function isNonTransactionInfoLine(text) {
+  const value = String(text || "").trim();
+  if (!value || hasMoneySignal(value)) return false;
+  if (/^\d{3,6}\s+[A-Za-z][A-Za-z\s'.-]{2,}\s*[@+]?\s*[0-9]{1,2}[:：][0-9]{2}\s*$/i.test(value)) return true;
+  if (/^\d{3,6}\s+[A-Za-z][A-Za-z\s'.-]{2,}$/i.test(value)) return true;
+  if (/^[A-Za-z][A-Za-z\s'.-]{2,}\s*[@+]?\s*[0-9]{1,2}[:：][0-9]{2}\s*$/i.test(value)) return true;
+  return false;
 }
 
 function isDateLikeNumber(value) {
