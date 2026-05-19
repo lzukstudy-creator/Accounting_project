@@ -307,6 +307,8 @@ def is_likely_amount(match, text):
     end = min(len(text), match.end() + 12)
     around = text[start:end]
     value = parse_amount_number(match.group(1))
+    if is_likely_store_code_amount(match, text, value):
+        return False
     if not has_money_signal(text) and value >= 1000 and re.search(r"[A-Za-z\u4e00-\u9fa5]", text):
         return False
     if re.search(r"[年月日:：]", around):
@@ -316,6 +318,19 @@ def is_likely_amount(match, text):
     if re.search(r"(?:订单|单号|流水|交易号|编号|电话|手机|No\.?|ID)", around, re.I):
         return False
     return True
+
+
+def is_likely_store_code_amount(match, text, value):
+    raw = re.sub(r"\s+", "", match.group(1) or "")
+    if not float(value).is_integer() or value < 1000 or value > 999999 or re.search(r"[+\-.,]", raw):
+        return False
+    before = text[max(0, match.start() - 28):match.start()]
+    after = text[match.end():min(len(text), match.end() + 18)]
+    if re.search(r"(?:¥|RMB|CNY|人民币|£|GBP|英镑|\$|USD|美元|€|EUR|欧元|元)\s*$", before, re.I):
+        return False
+    if re.search(r"(?:元|GBP|CNY|USD|EUR)\b", after, re.I):
+        return False
+    return bool(re.search(r"[A-Za-z][A-Za-z\s'.&-]{1,}$", before.strip()) and re.search(r"^\s*(?:$|[A-Za-z]|[-+]\s*(?:[A-Za-z上]|[0-9]+\.[0-9]{1,2}))", after))
 
 
 def has_money_signal(text):
@@ -430,6 +445,7 @@ def clean_merchant_candidate(value):
     candidate = re.sub(r"[+-]?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s*(?:元|GBP|CNY|USD|EUR)?", "", candidate, flags=re.I)
     candidate = re.sub(r"[0-9]{4}[-/.年][0-9]{1,2}[-/.月][0-9]{1,2}日?", "", candidate)
     candidate = re.sub(r"[0-9]{1,2}[:：][0-9]{2}(?::[0-9]{2})?", "", candidate)
+    candidate = re.sub(r"(?:^|\s)[上士土]\s*$", "", candidate)
     candidate = re.sub(r"(?:微信支付|支付宝|银行卡|Apple\s*Pay|支付成功|交易成功)", "", candidate, flags=re.I)
     candidate = re.sub(r"[+-]", "", candidate).strip()
     if not candidate or re.match(r"^[0-9¥£$€:：.\-/\s]+$", candidate):

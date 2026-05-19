@@ -1135,11 +1135,22 @@ function isLikelyAmount(match, text) {
   const end = Math.min(text.length, match.index + match[0].length + 12);
   const around = text.slice(start, end);
   const value = parseAmountNumber(match[1]);
+  if (isLikelyStoreCodeAmount(match, text, value)) return false;
   if (!hasMoneySignal(text) && value >= 1000 && /[A-Za-z\u4e00-\u9fa5]/.test(text)) return false;
   if (/[年月日:：]/.test(around)) return false;
   if (isDateLikeNumber(value) && /(?:date|time|日期|时间|[-/.年年月日])/i.test(around)) return false;
   if (/(?:订单|单号|流水|交易号|编号|电话|手机|No\.?|ID)/i.test(around)) return false;
   return true;
+}
+
+function isLikelyStoreCodeAmount(match, text, value) {
+  const raw = String(match[1] || "").replace(/\s+/g, "");
+  if (!Number.isInteger(value) || value < 1000 || value > 999999 || /[+\-.,]/.test(raw)) return false;
+  const before = text.slice(Math.max(0, match.index - 28), match.index);
+  const after = text.slice(match.index + match[0].length, Math.min(text.length, match.index + match[0].length + 18));
+  if (/(?:¥|RMB|CNY|人民币|£|GBP|英镑|\$|USD|美元|€|EUR|欧元|元)\s*$/i.test(before)) return false;
+  if (/(?:元|GBP|CNY|USD|EUR)\b/i.test(after)) return false;
+  return /[A-Za-z][A-Za-z\s'.&-]{1,}$/.test(before.trim()) && (/^\s*(?:$|[A-Za-z]|[-+]\s*(?:[A-Za-z上]|[0-9]+\.[0-9]{1,2}))/.test(after));
 }
 
 function hasMoneySignal(text) {
@@ -1231,6 +1242,7 @@ function cleanMerchantCandidate(value) {
     .replace(/[+-]?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s*(?:元|GBP|CNY|USD|EUR)?/gi, "")
     .replace(/[0-9]{4}[-/.年][0-9]{1,2}[-/.月][0-9]{1,2}日?/g, "")
     .replace(/[0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?/g, "")
+    .replace(/(?:^|\s)[上士土]\s*$/g, "")
     .replace(/(?:微信支付|支付宝|银行卡|Apple\s*Pay|支付成功|交易成功)/gi, "")
     .replace(/[+-]/g, "")
     .trim();
