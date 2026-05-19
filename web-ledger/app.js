@@ -933,13 +933,14 @@ function parseBillDrafts(text, file, options = {}) {
   const normalized = normalizeReceiptText(text);
   if (options.fileOnly) return [parseBillText(normalized, file, options)];
 
-  const lineItems = extractBillLines(normalized);
-  if (lineItems.length <= 1) return [parseBillText(normalized, file, options)];
+  const lineItems = extractBillLineItems(normalized);
+  if (!lineItems.length) return [parseBillText(normalized, file, options)];
 
   const sharedDate = extractDate(normalized);
   const sharedPaymentMethod = inferPaymentMethod(normalized);
   const sharedCurrency = inferCurrency(normalized);
-  return lineItems.map((line, index) => {
+  return lineItems.map((item, index) => {
+    const line = item.text;
     const draft = parseBillText(line, file, { ...options, lineItem: true });
     const type = inferBillType(line);
     const linePaymentMethod = inferExplicitPaymentMethod(line) || sharedPaymentMethod;
@@ -948,7 +949,7 @@ function parseBillDrafts(text, file, options = {}) {
       type,
       category: type === "收入" ? inferIncomeCategory(`${normalized}\n${line}`) : draft.category,
       currency: inferExplicitCurrency(line) || sharedCurrency,
-      date: sharedDate || draft.date,
+      date: item.date || draft.date || sharedDate,
       account: linePaymentMethod,
       paymentMethod: linePaymentMethod,
       note: language() === "en" ? `${options.ocrText ? "Free OCR" : "AI"} recognized item ${index + 1}: ${line.slice(0, 90)}` : `${options.ocrText ? "免费 OCR" : "AI"} 识别第 ${index + 1} 条：${line.slice(0, 90)}`,
@@ -958,19 +959,32 @@ function parseBillDrafts(text, file, options = {}) {
 }
 
 function extractBillLines(text) {
+  return extractBillLineItems(text).map((item) => item.text);
+}
+
+function extractBillLineItems(text) {
   const lines = text
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const candidates = lines.filter((line) => {
+  let currentDate = null;
+  const candidates = [];
+  lines.forEach((line) => {
+    const lineDate = extractDate(line);
+    if (lineDate && (isDateOnlyLine(line) || isDateSummaryLine(line))) {
+      currentDate = lineDate;
+      return;
+    }
     if (isDateOnlyLine(line)) return false;
+    if (isDateSummaryLine(line)) return false;
     if (isNonTransactionInfoLine(line)) return false;
     if (!extractAmount(line)) return false;
     if (/(?:合计|总计|小计|应付|实付|支付金额|付款金额|total|subtotal|tax|balance)/i.test(line)) return false;
     if (/^(?:¥|£|\$|€)?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s*(?:元|GBP|CNY|USD|EUR)?$/i.test(line)) return false;
-    return cleanMerchantCandidate(line).length > 0;
+    if (!cleanMerchantCandidate(line).length) return false;
+    candidates.push({ text: line, date: currentDate });
   });
-  return candidates.length >= 2 ? candidates : [];
+  return candidates;
 }
 
 async function recognizeReceiptImage(file) {
@@ -1061,6 +1075,7 @@ function inferExplicitCurrency(text) {
 }
 
 function extractAmount(text) {
+  if (isDateSummaryLine(text)) return 0;
   if (isNonTransactionInfoLine(text)) return 0;
   const amountValue = "([+-]?\\s*[0-9][0-9,]*(?:\\.[0-9]{1,2})?)";
   const currencyMark = "(?:¥|RMB|CNY|人民币|£|GBP|英镑|\\$|USD|美元|€|EUR|欧元|元)?";
@@ -1251,6 +1266,17 @@ function stripDateAndTimeParts(text) {
 function isDateOnlyLine(line) {
   const stripped = stripDateAndTimeParts(line).replace(/[^\dA-Za-z\u4e00-\u9fa5]/g, "").trim();
   return Boolean(extractDate(line)) && stripped.length === 0;
+}
+
+function isDateSummaryLine(line) {
+  if (!extractDate(line) || !hasMoneySignal(line)) return false;
+  const stripped = stripDateAndTimeParts(line)
+    .replace(/[+-]?\s*(?:¥|RMB|CNY|人民币|£|GBP|英镑|\$|USD|美元|€|EUR|欧元|元)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?/gi, " ")
+    .replace(/[+-]?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s*(?:元|GBP|CNY|USD|EUR)?/gi, " ")
+    .replace(/\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Tues|Wed|Thu|Thur|Fri|Sat|Sun)\b/gi, " ")
+    .replace(/[,\-–—|·\s]/g, "")
+    .trim();
+  return stripped.length === 0;
 }
 
 function scanConfidence(text, amount, fileOnly = false) {
