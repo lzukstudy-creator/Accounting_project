@@ -38,6 +38,7 @@ GET    /api/bills        获取账单列表
 POST   /api/bills        新增一条账单
 DELETE /api/bills/{id}   删除一条账单
 GET    /api/settings     获取预算和语言等设置
+POST   /api/ocr/parse    后端解析 OCR 文本，返回结构化账单
 POST   /api/reset        重置数据库状态
 ```
 

@@ -919,7 +919,7 @@ async function recognizeBill() {
     showToast(language() === "en" ? "Upload an image or paste receipt text first" : "请先上传图片或粘贴账单文字");
     return;
   }
-  scanDraft = parseBillDrafts(raw, file, { fileOnly: !text && !!file && !ocrText, ocrText });
+  scanDraft = await parseBillDraftsWithBackend(raw, file, { fileOnly: !text && !!file && !ocrText, ocrText });
   if ($("#autoAddToggle").checked) {
     const added = addScanDraft();
     showToast(added ? (language() === "en" ? `AI auto-added ${added} bill(s)` : `AI 已自动添加 ${added} 条账单`) : (language() === "en" ? "Please confirm the recognized amount first" : "请先确认识别金额"));
@@ -927,6 +927,34 @@ async function recognizeBill() {
     renderScanDraft();
     showToast(language() === "en" ? "Editable bill draft generated" : "已生成可编辑账单草稿");
   }
+}
+
+async function parseBillDraftsWithBackend(text, file, options = {}) {
+  if (options.fileOnly) return parseBillDrafts(text, file, options);
+  for (const base of apiBaseCandidates()) {
+    try {
+      const response = await fetch(`${base}/api/ocr/parse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ text })
+      });
+      if (!response.ok) continue;
+      const payload = await response.json();
+      if (Array.isArray(payload.items)) {
+        apiBase = base;
+        apiEnabled = true;
+        const items = payload.items.map((item) => bill({
+          ...item,
+          source: item.source || "AI 扫描",
+          confidence: item.confidence ?? 0.82
+        }));
+        return items.length ? items : parseBillDrafts(text, file, options);
+      }
+    } catch {
+      // Keep the browser-side parser as a no-network fallback.
+    }
+  }
+  return parseBillDrafts(text, file, options);
 }
 
 function parseBillDrafts(text, file, options = {}) {
@@ -1140,7 +1168,6 @@ function isLikelyExpenseChargeLine(text) {
   const value = String(text || "");
   if (!hasPositiveAmount(value)) return false;
   if (/(?:reversal|refund|退款|退回|返现|cash\s*back|received|income|salary|deposit|credit|到账|入账|转入)/i.test(value)) return false;
-  if (inferCategory(value) !== "其他") return true;
   return /(?:tesco|sainsbury|aldi|lidl|morrisons|waitrose|amazon|apple\.com\/bill|hyperoptic|myprinting|imart|oriental|stores?\s+[0-9]{3,6})/i.test(value);
 }
 
