@@ -1085,6 +1085,9 @@ function parseBillText(text, file, options = {}) {
 function normalizeReceiptText(text) {
   return String(text || "")
     .replaceAll("￥", "¥")
+    .replace(/([+-])\s*[fF]\s*(?=[0-9])/g, "$1£")
+    .replace(/([+-]\s*)[fF]\s+(?=[0-9])/g, "$1£")
+    .replace(/([^\w])f\s+(?=[0-9]+\.[0-9]{1,2})/gi, "$1£")
     .replace(/\r/g, "\n")
     .replace(/\s+\n/g, "\n")
     .trim();
@@ -1243,6 +1246,7 @@ function cleanMerchantCandidate(value) {
     .replace(/[0-9]{4}[-/.年][0-9]{1,2}[-/.月][0-9]{1,2}日?/g, "")
     .replace(/[0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?/g, "")
     .replace(/(?:^|\s)[上士土]\s*$/g, "")
+    .replace(/[®©]/g, "")
     .replace(/(?:微信支付|支付宝|银行卡|Apple\s*Pay|支付成功|交易成功)/gi, "")
     .replace(/[+-]/g, "")
     .trim();

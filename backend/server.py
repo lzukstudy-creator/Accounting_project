@@ -169,7 +169,11 @@ def sync_tables(conn, state):
 
 
 def normalize_receipt_text(text):
-    return re.sub(r"\s+\n", "\n", str(text or "").replace("￥", "¥").replace("\r", "\n")).strip()
+    value = str(text or "").replace("￥", "¥")
+    value = re.sub(r"([+-])\s*[fF]\s*(?=[0-9])", r"\1£", value)
+    value = re.sub(r"([+-]\s*)[fF]\s+(?=[0-9])", r"\1£", value)
+    value = re.sub(r"([^\w])f\s+(?=[0-9]+\.[0-9]{1,2})", r"\1£", value, flags=re.I)
+    return re.sub(r"\s+\n", "\n", value.replace("\r", "\n")).strip()
 
 
 def parse_ocr_text(text):
@@ -446,6 +450,7 @@ def clean_merchant_candidate(value):
     candidate = re.sub(r"[0-9]{4}[-/.年][0-9]{1,2}[-/.月][0-9]{1,2}日?", "", candidate)
     candidate = re.sub(r"[0-9]{1,2}[:：][0-9]{2}(?::[0-9]{2})?", "", candidate)
     candidate = re.sub(r"(?:^|\s)[上士土]\s*$", "", candidate)
+    candidate = re.sub(r"[®©]", "", candidate)
     candidate = re.sub(r"(?:微信支付|支付宝|银行卡|Apple\s*Pay|支付成功|交易成功)", "", candidate, flags=re.I)
     candidate = re.sub(r"[+-]", "", candidate).strip()
     if not candidate or re.match(r"^[0-9¥£$€:：.\-/\s]+$", candidate):
